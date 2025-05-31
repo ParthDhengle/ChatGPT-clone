@@ -31,7 +31,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
     <div className="flex-1 flex flex-col bg-gray-900 min-h-screen">
       {/* Chat Header */}
       <div className="border-b border-gray-700 p-4 bg-gray-800">
-        <h1 className="text-xl font-semibold text-white truncate">
+        <h1 className="text-xl font-semibold text-white truncate pl-14 pr-4">
           {chat.title}
         </h1>
       </div>
