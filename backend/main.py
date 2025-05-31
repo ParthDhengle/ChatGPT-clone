@@ -1,14 +1,11 @@
-from fastapi import FastAPI , Request , HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from groq import Groq
 import os
-from pydantic import BaseModel
-import uvicorn
 import logging
 from typing import List, Dict
-
-
+from pydantic import BaseModel
+import uvicorn
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -16,7 +13,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Update with your frontend URL
+    allow_origins=["http://localhost:3000" , "http://localhost:8080"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,14 +25,13 @@ if not GROQ_API_KEY:
 
 client = Groq(api_key=GROQ_API_KEY)
 
-# groq_messages = [{"role": "system", "content": "You are a helpful assistant."}] + groq_messages
+class ChatRequest(BaseModel):
+    messages: List[Dict[str, str]]
 
 @app.post("/api/chat")
-async def chat(request: Request):
+async def chat(request: ChatRequest):
     try:
-        data  = await request.json()
-        messages = data .get("messages")
-
+        messages = request.messages
         if not messages or not isinstance(messages, list):
             raise HTTPException(status_code=400, detail="Invalid or missing 'messages' in request body")
 
@@ -47,13 +43,14 @@ async def chat(request: Request):
             for msg in messages
             if msg.get("role") in ["user", "assistant"] and isinstance(msg.get("content"), str)
         ]
+
         try:
             response = client.chat.completions.create(
-                model="meta-llama/llama-4-maverick-17b-128e-instruct",  # Use a valid Groq model
-                messages=groq_messages,  # Use transformed messages
+                model="meta-llama/llama-4-maverick-17b-128e-instruct",
+                messages=groq_messages,
                 max_tokens=1000,
                 temperature=0.7,
-                stream=False,
+                stream=False,  # Disable streaming
             )
             content = response.choices[0].message.content
             if not content:
@@ -65,8 +62,9 @@ async def chat(request: Request):
     except Exception as e:
         logger.error(f"Request processing error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
+
 if __name__ == "__main__":
-    uvicorn.run("main:app",host="127.0.0.1", port=5000, reload=True)
+    uvicorn.run("main:app", host="127.0.0.1", port=5000, reload=True)
 
 
 # client = Groq(api_key=os.getenv("GROQ_API_KEY"))
@@ -100,4 +98,3 @@ if __name__ == "__main__":
 #             bot_response += content
 #     print()
 #     chat_history.append({"role": "assistant", "content": bot_response})
-    
