@@ -99,6 +99,10 @@ const Index = () => {
       timestamp: new Date(),
     };
 
+    // Get current chat history
+    const currentChat = chats.find((chat) => chat.id === activeChat);
+    const chatHistory = currentChat ? currentChat.messages : [];
+
     setChats((prev) =>
       prev.map((chat) => {
         if (chat.id === activeChat) {
@@ -117,7 +121,8 @@ const Index = () => {
     );
 
     try {
-      const assistantResponse = await sendMessage([userMessage]);
+      // Send full chat history plus new message
+      const assistantResponse = await sendMessage([...chatHistory, userMessage]);
       setChats((prev) =>
         prev.map((chat) =>
           chat.id === activeChat
