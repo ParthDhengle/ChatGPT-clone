@@ -55,7 +55,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       {/* Input Area */}
       <div className="border-t border-gray-700 p-4 bg-gray-800">
         <div className="max-w-4xl mx-auto">
-          <ChatInput onSendMessage={onSendMessage} />
+          <ChatInput onSendMessage={onSendMessage}chatId={chat.id} />
         </div>
       </div>
     </div>

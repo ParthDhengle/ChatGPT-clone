@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from groq import Groq
 import os
-import asyncio
+from pydantic import BaseModel
 import uvicorn
 import logging
 from typing import List, Dict
@@ -47,31 +47,26 @@ async def chat(request: Request):
             for msg in messages
             if msg.get("role") in ["user", "assistant"] and isinstance(msg.get("content"), str)
         ]
-
-        async def generate_response():
-            try:
-                response = client.chat.completions.create(
-                    model="meta-llama/llama-4-maverick-17b-128e-instruct",  # Use a valid Groq model
-                    messages=groq_messages,  # Use transformed messages
-                    max_tokens=1000,
-                    temperature=0.7,
-                    stream=True,
-                )
-                for chunk in response:
-                    content = chunk.choices[0].delta.content
-                    if content:  # Only yield non-empty content
-                        yield f"data: {content}\n\n"
-            except Exception as e:
-                logger.error(f"Groq API error: {str(e)}")
-                yield f"data: [ERROR] Failed to generate response: {str(e)}\n\n"
-                   
-        return StreamingResponse(generate_response(), media_type="text/event-stream")
+        try:
+            response = client.chat.completions.create(
+                model="meta-llama/llama-4-maverick-17b-128e-instruct",  # Use a valid Groq model
+                messages=groq_messages,  # Use transformed messages
+                max_tokens=1000,
+                temperature=0.7,
+                stream=False,
+            )
+            content = response.choices[0].message.content
+            if not content:
+                raise HTTPException(status_code=500, detail="Empty response from Groq")
+            return {"content": content}
+        except Exception as e:
+            logger.error(f"Groq API error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Groq API error: {str(e)}")
     except Exception as e:
         logger.error(f"Request processing error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error processing request: {str(e)}")
-
 if __name__ == "__main__":
-    uvicorn.run("main:app", port=5000, reload=True)
+    uvicorn.run("main:app",host="127.0.0.1", port=5000, reload=True)
 
 
 # client = Groq(api_key=os.getenv("GROQ_API_KEY"))

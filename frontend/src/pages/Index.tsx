@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ChatSidebar } from '@/components/ChatSidebar';
 import { ChatArea } from '@/components/ChatArea';
-
+import { sendAndStreamMessage } from "@/api/chatApi";
 export interface Message {
   id: string;
   content: string;
@@ -104,51 +104,58 @@ const Index = () => {
       isStreaming: true
     };
 
-    setChats(prev => prev.map(chat => {
-      if (chat.id === activeChat) {
-        const updatedChat = {
-          ...chat,
-          messages: [...chat.messages, userMessage, assistantMessage],
-          lastMessage: new Date()
-        };
-        
-        // Update title if it's a new chat
-        if (chat.title === 'New Chat' && chat.messages.length === 0) {
-          updatedChat.title = content.slice(0, 30) + (content.length > 30 ? '...' : '');
-        }
-        
-        return updatedChat;
-      }
-      return chat;
-    }));
-
-    // Simulate AI response streaming
-    setTimeout(() => {
-      const responses = [
-        "I'd be happy to help you with that! Let me think about this for a moment...",
-        "That's an interesting question. Here's what I can tell you about that topic...",
-        "Great question! Let me break this down for you step by step...",
-        "I understand what you're asking. Here's my perspective on this...",
-      ];
-      
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-      
-      setChats(prev => prev.map(chat => {
+    setChats((prev) =>
+      prev.map((chat) => {
         if (chat.id === activeChat) {
-          return {
+          const updatedChat = {
             ...chat,
-            messages: chat.messages.map(msg => 
-              msg.id === assistantMessage.id 
-                ? { ...msg, content: randomResponse, isStreaming: false }
-                : msg
-            )
+            messages: [...chat.messages, userMessage, assistantMessage],
+            lastMessage: new Date(),
           };
+          if (chat.title === "New Chat" && chat.messages.length === 0) {
+            updatedChat.title = content.slice(0, 30) + (content.length > 30 ? "..." : "");
+          }
+          return updatedChat;
         }
         return chat;
-      }));
-    }, 2000);
-  };
+      })
+    );
 
+    // Send to backend and stream response
+    sendAndStreamMessage([userMessage], (chunk) => {
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === activeChat
+            ? {
+                ...chat,
+                messages: chat.messages.map((msg) =>
+                  msg.id === assistantMessage.id
+                    ? { ...msg, content: msg.content + chunk, isStreaming: true }
+                    : msg
+                ),
+              }
+            : chat
+        )
+      );
+    }, (error) => {
+      console.error(error);
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === activeChat
+            ? {
+                ...chat,
+                messages: chat.messages.map((msg) =>
+                  msg.id === assistantMessage.id
+                    ? { ...msg, content: "Error: " + error, isStreaming: false }
+                    : msg
+                ),
+              }
+            : chat
+        )
+      );
+    });
+  };
+  
   const currentChat = chats.find(chat => chat.id === activeChat);
 
   return (

@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 
 interface ChatInputProps {
   onSendMessage: (message: string) => void;
+  chatId?: string
 }
 
 export const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage }) => {
