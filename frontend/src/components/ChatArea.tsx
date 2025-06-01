@@ -53,7 +53,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({
       </ScrollArea>
 
       {/* Input Area */}
-      <div className="border-t border-gray-700 p-4 bg-gray-800">
+      <div className=" border-700 p-4 bg--800">
         <div className="max-w-4xl mx-auto">
           <ChatInput onSendMessage={onSendMessage} />
         </div>
