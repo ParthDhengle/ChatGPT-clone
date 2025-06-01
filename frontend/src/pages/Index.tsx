@@ -1,5 +1,5 @@
 // src/pages/Index.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { ChatArea } from "@/components/ChatArea";
 import { sendMessage } from "@/api/chatApi";
@@ -20,63 +20,31 @@ export interface Chat {
 }
 
 const Index = () => {
-  const [chats, setChats] = useState<Chat[]>([
-    {
-      id: "1",
+  // Initialize sidebarCollapsed from localStorage or default to true (collapsed)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    const saved = localStorage.getItem("sidebarCollapsed");
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [activeChat, setActiveChat] = useState<string>("");
+
+  // Save sidebar state to localStorage on change
+  useEffect(() => {
+    localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed));
+  }, [sidebarCollapsed]);
+
+  // Create new chat on first load
+  useEffect(() => {
+    const newChat: Chat = {
+      id: Date.now().toString(),
       title: "New Chat",
       messages: [],
       lastMessage: new Date(),
-    },
-    {
-      id: "2",
-      title: "Chat with GPT-4",
-      messages: [
-        {
-          id: "1",
-          content: "Hello! How can I help you today?",
-          sender: "assistant",
-          timestamp: new Date(Date.now() - 300000),
-        },
-        {
-          id: "2",
-          content: "Can you explain quantum computing?",
-          sender: "user",
-          timestamp: new Date(Date.now() - 240000),
-        },
-        {
-          id: "3",
-          content:
-            "Quantum computing is a revolutionary approach to computation that harnesses the principles of quantum mechanics to process information in fundamentally different ways than classical computers.",
-          sender: "assistant",
-          timestamp: new Date(Date.now() - 180000),
-        },
-      ],
-      lastMessage: new Date(Date.now() - 180000),
-    },
-    {
-      id: "3",
-      title: "React Development Tips",
-      messages: [
-        {
-          id: "1",
-          content: "What are some best practices for React development?",
-          sender: "user",
-          timestamp: new Date(Date.now() - 86400000),
-        },
-        {
-          id: "2",
-          content:
-            "Here are some key React best practices:\n\n1. Use functional components with hooks\n2. Keep components small and focused\n3. Use proper state management\n4. Implement error boundaries\n5. Optimize with React.memo when needed",
-          sender: "assistant",
-          timestamp: new Date(Date.now() - 86340000),
-        },
-      ],
-      lastMessage: new Date(Date.now() - 86340000),
-    },
-  ]);
-
-  const [activeChat, setActiveChat] = useState<string>("2");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+    };
+    setChats([newChat]);
+    setActiveChat(newChat.id);
+  }, []);
 
   const createNewChat = () => {
     const newChat: Chat = {
@@ -99,7 +67,6 @@ const Index = () => {
       timestamp: new Date(),
     };
 
-    // Get current chat history
     const currentChat = chats.find((chat) => chat.id === activeChat);
     const chatHistory = currentChat ? currentChat.messages : [];
 
@@ -121,7 +88,6 @@ const Index = () => {
     );
 
     try {
-      // Send full chat history plus new message
       const assistantResponse = await sendMessage([...chatHistory, userMessage]);
       setChats((prev) =>
         prev.map((chat) =>
