@@ -1,8 +1,8 @@
-// src/pages/Index.tsx
 import React, { useState, useEffect } from "react";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { ChatArea } from "@/components/ChatArea";
 import { sendMessage } from "@/api/chatApi";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 export interface Message {
   id: string;
@@ -19,8 +19,7 @@ export interface Chat {
   lastMessage?: Date;
 }
 
-const Index = () => {
-  // Initialize sidebarCollapsed from localStorage or default to true (collapsed)
+const IndexContent = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     const saved = localStorage.getItem("sidebarCollapsed");
     return saved !== null ? JSON.parse(saved) : true;
@@ -29,12 +28,10 @@ const Index = () => {
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<string>("");
 
-  // Save sidebar state to localStorage on change
   useEffect(() => {
     localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed));
   }, [sidebarCollapsed]);
 
-  // Create new chat on first load
   useEffect(() => {
     const newChat: Chat = {
       id: Date.now().toString(),
@@ -135,7 +132,7 @@ const Index = () => {
   const currentChat = chats.find((chat) => chat.id === activeChat);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex w-full">
+    <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white flex w-full transition-colors duration-200">
       <ChatSidebar
         chats={chats}
         activeChat={activeChat}
@@ -150,6 +147,14 @@ const Index = () => {
         sidebarCollapsed={sidebarCollapsed}
       />
     </div>
+  );
+};
+
+const Index = () => {
+  return (
+    <ThemeProvider>
+      <IndexContent />
+    </ThemeProvider>
   );
 };
 

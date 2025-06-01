@@ -51,20 +51,20 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       {/* Sidebar */}
       <div
         className={`
-          fixed md:relative z-50 h-screen bg-gray-800 border-r border-gray-700 transition-all duration-300 ease-in-out
+          fixed md:relative z-50 h-screen bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out
           ${collapsed ? "w-0 md:w-0" : "w-80"}
           ${collapsed ? "-translate-x-full md:translate-x-0" : "translate-x-0"}
         `}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between p-3 border-b border-gray-700">
-            {!collapsed && <h2 className="text-lg font-semibold text-white">Chats</h2>}
+          <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
+            {!collapsed && <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Chats</h2>}
             <Button
               variant="ghost"
               size="sm"
               onClick={onToggleCollapse}
-              className="text-gray-400 hover:text-white"
+              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             >
               {collapsed ? <Menu size={18} /> : <X size={18} />}
             </Button>
@@ -77,7 +77,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
               <div className="p-4">
                 <Button
                   onClick={onNewChat}
-                  className="w-full bg-gray-700 hover:bg-gray-600 text-white border border-gray-600"
+                  className="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600"
                   variant="outline"
                 >
                   <Plus size={16} className="mr-2" />
@@ -100,8 +100,8 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                       className={`
                         w-full text-left p-3 rounded-lg transition-colors duration-200 group
                         ${activeChat === chat.id
-                          ? "bg-gray-700 text-white"
-                          : "text-gray-300 hover:bg-gray-700/50 hover:text-white"
+                          ? "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
+                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white"
                         }
                       `}
                     >
@@ -110,7 +110,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{chat.title}</p>
                           {chat.lastMessage && (
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                               {formatDate(chat.lastMessage)}
                             </p>
                           )}
@@ -129,11 +129,11 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       {collapsed && (
         <Button
           onClick={onToggleCollapse}
-          className="fixed top-4 left-4 z-50 bg-gray-800 hover:bg-gray-700 border border-gray-600 shadow-lg"
+          className="fixed top-4 left-4 z-50 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 shadow-lg"
           size="sm"
           variant="outline"
         >
-          <Menu size={18} className="text-white" />
+          <Menu size={18} className="text-gray-900 dark:text-white" />
         </Button>
       )}
     </>
