@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from "react";
 import { ChatSidebar } from "@/components/ChatSidebar";
 import { ChatArea } from "@/components/ChatArea";
+import Login from "@/components/Login";
+import SignUp from "@/components/SignUp";
 import { sendMessage } from "@/api/chatApi";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 
 export interface Message {
   id: string;
   content: string;
   sender: "user" | "assistant";
-  timestamp: Date;
-  isStreaming?: boolean;
+  timestamp: string;
+  chatId: string;
 }
 
 export interface Chat {
@@ -19,20 +23,27 @@ export interface Chat {
   lastMessage?: Date;
 }
 
+const ProtectedRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white">Loading...</div>;
+  return user ? children : <Navigate to="/login" />;
+};
+
 const IndexContent = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     const saved = localStorage.getItem("sidebarCollapsed");
     return saved !== null ? JSON.parse(saved) : true;
   });
-
   const [chats, setChats] = useState<Chat[]>([]);
   const [activeChat, setActiveChat] = useState<string>("");
+  const { userId } = useAuth();
 
   useEffect(() => {
     localStorage.setItem("sidebarCollapsed", JSON.stringify(sidebarCollapsed));
   }, [sidebarCollapsed]);
 
   useEffect(() => {
+    console.log("User ID:", userId); // For testing
     const newChat: Chat = {
       id: Date.now().toString(),
       title: "New Chat",
@@ -54,7 +65,7 @@ const IndexContent = () => {
     setActiveChat(newChat.id);
   };
 
-  const deleteChat = (chatId: string) => {
+  const handleDeleteChat = (chatId: string) => {
     setChats((prev) => prev.filter((chat) => chat.id !== chatId));
     if (activeChat === chatId) {
       const remainingChats = chats.filter((chat) => chat.id !== chatId);
@@ -80,31 +91,28 @@ const IndexContent = () => {
       id: Date.now().toString(),
       content,
       sender: "user",
-      timestamp: new Date(),
+      timestamp: new Date().toISOString(),
+      chatId: activeChat,
     };
 
-    const currentChat = chats.find((chat) => chat.id === activeChat);
-    const chatHistory = currentChat ? currentChat.messages : [];
-
     setChats((prev) =>
-      prev.map((chat) => {
-        if (chat.id === activeChat) {
-          const updatedChat: Chat = {
-            ...chat,
-            messages: [...chat.messages, userMessage],
-            lastMessage: new Date(),
-          };
-          if (chat.title === "New Chat" && chat.messages.length === 0) {
-            updatedChat.title = content.slice(0, 30) + (content.length > 30 ? "..." : "");
-          }
-          return updatedChat;
-        }
-        return chat;
-      })
+      prev.map((chat) =>
+        chat.id === activeChat
+          ? {
+              ...chat,
+              messages: [...chat.messages, userMessage],
+              lastMessage: new Date(),
+              title:
+                chat.title === "New Chat" && chat.messages.length === 0
+                  ? content.slice(0, 30) + (content.length > 30 ? "..." : "")
+                  : chat.title,
+            }
+          : chat
+      )
     );
 
     try {
-      const assistantResponse = await sendMessage([...chatHistory, userMessage]);
+      const assistantResponse = await sendMessage([...(chats.find((chat) => chat.id === activeChat)?.messages || []), userMessage]);
       setChats((prev) =>
         prev.map((chat) =>
           chat.id === activeChat
@@ -116,7 +124,8 @@ const IndexContent = () => {
                     id: (Date.now() + 1).toString(),
                     content: assistantResponse || "No response received",
                     sender: "assistant",
-                    timestamp: new Date(),
+                    timestamp: new Date().toISOString(),
+                    chatId: activeChat,
                   },
                 ],
                 lastMessage: new Date(),
@@ -137,7 +146,8 @@ const IndexContent = () => {
                     id: (Date.now() + 1).toString(),
                     content: `Error: ${error.message}`,
                     sender: "assistant",
-                    timestamp: new Date(),
+                    timestamp: new Date().toISOString(),
+                    chatId: activeChat,
                   },
                 ],
                 lastMessage: new Date(),
@@ -157,9 +167,9 @@ const IndexContent = () => {
         activeChat={activeChat}
         onChatSelect={setActiveChat}
         onNewChat={createNewChat}
+        onDeleteChat={handleDeleteChat}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-        onDeleteChat={deleteChat}
       />
       <ChatArea
         chat={currentChat}
@@ -173,7 +183,23 @@ const IndexContent = () => {
 const Index = () => {
   return (
     <ThemeProvider>
-      <IndexContent />
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<SignUp />} />
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <IndexContent />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<Navigate to="/login" />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
     </ThemeProvider>
   );
 };

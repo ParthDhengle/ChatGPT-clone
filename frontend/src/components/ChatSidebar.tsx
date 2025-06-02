@@ -1,17 +1,19 @@
 import React from "react";
-import { Plus, MessageSquare, Menu, X, Trash2 } from "lucide-react";
+import { Plus, MessageSquare, Menu, X, Trash2, LogOut } from "lucide-react";
 import { Chat } from "@/pages/Index";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 interface ChatSidebarProps {
   chats: Chat[];
   activeChat: string;
   onChatSelect: (chatId: string) => void;
   onNewChat: () => void;
+  onDeleteChat: (chatId: string) => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
-  onDeleteChat: (chatId: string) => void;
 }
 
 export const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -19,10 +21,13 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   activeChat,
   onChatSelect,
   onNewChat,
+  onDeleteChat,
   collapsed,
   onToggleCollapse,
-  onDeleteChat,
 }) => {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
   const formatDate = (date: Date) => {
     const now = new Date();
     const diff = now.getTime() - date.getTime();
@@ -42,6 +47,15 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   const handleDelete = (chatId: string) => {
     if (window.confirm("Are you sure you want to delete this chat?")) {
       onDeleteChat(chatId);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate("/login");
+    } catch (err: any) {
+      console.error("Logout failed:", err.message);
     }
   };
 
@@ -66,7 +80,19 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
         <div className="flex flex-col h-full">
           {/* Header */}
           <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700">
-            {!collapsed && <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Chats</h2>}
+            {!collapsed && (
+              <div className="flex items-center justify-between w-full">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Chats</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleLogout}
+                  className="text-gray-600 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                >
+                  <LogOut size={16} />
+                </Button>
+              </div>
+            )}
             <Button
               variant="ghost"
               size="sm"
