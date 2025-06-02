@@ -54,6 +54,25 @@ const IndexContent = () => {
     setActiveChat(newChat.id);
   };
 
+  const deleteChat = (chatId: string) => {
+    setChats((prev) => prev.filter((chat) => chat.id !== chatId));
+    if (activeChat === chatId) {
+      const remainingChats = chats.filter((chat) => chat.id !== chatId);
+      if (remainingChats.length > 0) {
+        setActiveChat(remainingChats[0].id);
+      } else {
+        const newChat: Chat = {
+          id: Date.now().toString(),
+          title: "New Chat",
+          messages: [],
+          lastMessage: new Date(),
+        };
+        setChats([newChat]);
+        setActiveChat(newChat.id);
+      }
+    }
+  };
+
   const handleSendMessage = async (content: string) => {
     if (!activeChat) return;
 
@@ -140,6 +159,7 @@ const IndexContent = () => {
         onNewChat={createNewChat}
         collapsed={sidebarCollapsed}
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        onDeleteChat={deleteChat}
       />
       <ChatArea
         chat={currentChat}

@@ -1,6 +1,5 @@
-// src/components/ChatSidebar.tsx
 import React from "react";
-import { Plus, MessageSquare, Menu, X } from "lucide-react";
+import { Plus, MessageSquare, Menu, X, Trash2 } from "lucide-react";
 import { Chat } from "@/pages/Index";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,6 +11,7 @@ interface ChatSidebarProps {
   onNewChat: () => void;
   collapsed: boolean;
   onToggleCollapse: () => void;
+  onDeleteChat: (chatId: string) => void;
 }
 
 export const ChatSidebar: React.FC<ChatSidebarProps> = ({
@@ -21,6 +21,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   onNewChat,
   collapsed,
   onToggleCollapse,
+  onDeleteChat,
 }) => {
   const formatDate = (date: Date) => {
     const now = new Date();
@@ -38,6 +39,12 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
     }
   };
 
+  const handleDelete = (chatId: string) => {
+    if (window.confirm("Are you sure you want to delete this chat?")) {
+      onDeleteChat(chatId);
+    }
+  };
+
   return (
     <>
       {/* Mobile overlay */}
@@ -52,7 +59,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       <div
         className={`
           fixed md:relative z-50 h-screen bg-gray-100 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out
-          ${collapsed ? "w-0 md:w-0" : "w-80"}
+          ${collapsed ? "w-0 md:w-12" : "w-80"}
           ${collapsed ? "-translate-x-full md:translate-x-0" : "translate-x-0"}
         `}
       >
@@ -89,34 +96,43 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
               <ScrollArea className="flex-1 px-2">
                 <div className="space-y-1">
                   {chats.map((chat) => (
-                    <button
-                      key={chat.id}
-                      onClick={() => {
-                        onChatSelect(chat.id);
-                        if (window.innerWidth < 768) {
-                          onToggleCollapse();
-                        }
-                      }}
-                      className={`
-                        w-full text-left p-3 rounded-lg transition-colors duration-200 group
-                        ${activeChat === chat.id
-                          ? "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
-                          : "text-gray-700 dark:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white"
-                        }
-                      `}
-                    >
-                      <div className="flex items-start space-x-3">
-                        <MessageSquare size={16} className="mt-1 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{chat.title}</p>
-                          {chat.lastMessage && (
-                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                              {formatDate(chat.lastMessage)}
-                            </p>
-                          )}
+                    <div key={chat.id} className="group flex items-center">
+                      <button
+                        onClick={() => {
+                          onChatSelect(chat.id);
+                          if (window.innerWidth < 768) {
+                            onToggleCollapse();
+                          }
+                        }}
+                        className={`
+                          flex-1 text-left p-3 rounded-lg transition-colors duration-200
+                          ${activeChat === chat.id
+                            ? "bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white"
+                            : "text-gray-700 dark:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white"
+                          }
+                        `}
+                      >
+                        <div className="flex items-start space-x-3">
+                          <MessageSquare size={16} className="mt-1 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{chat.title}</p>
+                            {chat.lastMessage && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {formatDate(chat.lastMessage)}
+                              </p>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </button>
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDelete(chat.id)}
+                        className="opacity-0 group-hover:opacity-100 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
                   ))}
                 </div>
               </ScrollArea>
@@ -129,7 +145,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
       {collapsed && (
         <Button
           onClick={onToggleCollapse}
-          className="fixed top-4 left-4 z-50 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 shadow-lg"
+          className="fixed top-3 left-3 z-50 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 shadow-lg p-2 rounded-md"
           size="sm"
           variant="outline"
         >
