@@ -1,0 +1,77 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 33 33 33;
+    --foreground: 236 236 241;
+
+    --card: 47 47 47;
+    --card-foreground: 236 236 241;
+
+    --popover: 47 47 47;
+    --popover-foreground: 236 236 241;
+
+    --primary: 16 163 127;
+    --primary-foreground: 255 255 255;
+
+    --secondary: 52 53 65;
+    --secondary-foreground: 236 236 241;
+
+    --muted: 52 53 65;
+    --muted-foreground: 142 142 160;
+
+    --accent: 52 53 65;
+    --accent-foreground: 236 236 241;
+
+    --destructive: 239 68 68;
+    --destructive-foreground: 248 250 252;
+
+    --border: 52 53 65;
+    --input: 52 53 65;
+    --ring: 16 163 127;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 33 33 33;
+    --sidebar-foreground: 236 236 241;
+    --sidebar-primary: 16 163 127;
+    --sidebar-primary-foreground: 255 255 255;
+    --sidebar-accent: 47 47 47;
+    --sidebar-accent-foreground: 236 236 241;
+    --sidebar-border: 52 53 65;
+    --sidebar-ring: 16 163 127;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-chat-bg text-chat-text;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  }
+}
+
+@layer components {
+  .message-bubble {
+    @apply rounded-lg p-4 max-w-none;
+  }
+
+  .user-message {
+    @apply bg-chat-user;
+  }
+
+  .assistant-message {
+    @apply bg-chat-assistant;
+  }
+
+  .typing-indicator::after {
+    @apply animate-typing;
+    content: '';
+  }
+}
