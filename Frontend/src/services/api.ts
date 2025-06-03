@@ -1,5 +1,4 @@
-// src/services/api.ts
-const API_BASE_URL = 'http://localhost:8000'; // Update with your backend URL
+const API_BASE_URL = 'http://localhost:8000';
 
 interface ApiResponse<T> {
   success: boolean;
@@ -24,33 +23,46 @@ interface Message {
 }
 
 class ApiService {
-  private getAuthHeaders(): HeadersInit {
-    const token = localStorage.getItem('firebase_token');
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': token ? `Bearer ${token}` : '',
-    };
+  private async getAuthHeaders(): Promise<HeadersInit> {
+    try {
+      // Import Firebase auth dynamically to avoid SSR issues
+      const { getAuth } = await import('firebase/auth');
+      const auth = getAuth();
+      
+      if (!auth.currentUser) {
+        throw new Error('User not authenticated');
+      }
+      
+      // Get fresh token from Firebase
+      const token = await auth.currentUser.getIdToken();
+      
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      };
+    } catch (error) {
+      console.error('Error getting auth headers:', error);
+      throw new Error('Authentication failed');
+    }
   }
 
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Network error' }));
-      throw new Error(error.message || `HTTP error! status: ${response.status}`);
+      const error = await response.json().catch(() => ({ 
+        detail: `HTTP error! status: ${response.status}` 
+      }));
+      throw new Error(error.detail || error.message || 'Network error');
     }
     return response.json();
   }
 
   // Auth operations
-  async syncUserWithBackend(firebaseUser: any): Promise<boolean> {
+  async syncUserWithBackend(): Promise<boolean> {
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/sync`, {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/api/auth/sync`, {
         method: 'POST',
-        headers: this.getAuthHeaders(),
-        body: JSON.stringify({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          display_name: firebaseUser.displayName || firebaseUser.email,
-        }),
+        headers,
       });
       
       const result = await this.handleResponse<ApiResponse<any>>(response);
@@ -64,23 +76,25 @@ class ApiService {
   // Chat operations
   async getUserChats(): Promise<Chat[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/chats`, {
-        headers: this.getAuthHeaders(),
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/api/chats`, {
+        headers,
       });
       
       const result = await this.handleResponse<ApiResponse<Chat[]>>(response);
       return result.data || [];
     } catch (error) {
       console.error('Error fetching chats:', error);
-      return [];
+      throw error;
     }
   }
 
-  async createChat(title: string): Promise<string | null> {
+  async createChat(title: string = 'New Chat'): Promise<string | null> {
     try {
-      const response = await fetch(`${API_BASE_URL}/chats`, {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/api/chats`, {
         method: 'POST',
-        headers: this.getAuthHeaders(),
+        headers,
         body: JSON.stringify({ title }),
       });
       
@@ -88,30 +102,32 @@ class ApiService {
       return result.data?.chat_id || null;
     } catch (error) {
       console.error('Error creating chat:', error);
-      return null;
+      throw error;
     }
   }
 
   async deleteChat(chatId: string): Promise<boolean> {
     try {
-      const response = await fetch(`${API_BASE_URL}/chats/${chatId}`, {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
         method: 'DELETE',
-        headers: this.getAuthHeaders(),
+        headers,
       });
       
       const result = await this.handleResponse<ApiResponse<any>>(response);
       return result.success;
     } catch (error) {
       console.error('Error deleting chat:', error);
-      return false;
+      throw error;
     }
   }
 
   async updateChatTitle(chatId: string, title: string): Promise<boolean> {
     try {
-      const response = await fetch(`${API_BASE_URL}/chats/${chatId}`, {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}`, {
         method: 'PATCH',
-        headers: this.getAuthHeaders(),
+        headers,
         body: JSON.stringify({ title }),
       });
       
@@ -119,30 +135,32 @@ class ApiService {
       return result.success;
     } catch (error) {
       console.error('Error updating chat title:', error);
-      return false;
+      throw error;
     }
   }
 
   // Message operations
   async getChatMessages(chatId: string): Promise<Message[]> {
     try {
-      const response = await fetch(`${API_BASE_URL}/chats/${chatId}/messages`, {
-        headers: this.getAuthHeaders(),
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}/messages`, {
+        headers,
       });
       
       const result = await this.handleResponse<ApiResponse<Message[]>>(response);
       return result.data || [];
     } catch (error) {
       console.error('Error fetching messages:', error);
-      return [];
+      throw error;
     }
   }
 
   async sendMessage(chatId: string, content: string): Promise<{ userMessage: Message; aiResponse: Message } | null> {
     try {
-      const response = await fetch(`${API_BASE_URL}/chats/${chatId}/messages`, {
+      const headers = await this.getAuthHeaders();
+      const response = await fetch(`${API_BASE_URL}/api/chats/${chatId}/messages`, {
         method: 'POST',
-        headers: this.getAuthHeaders(),
+        headers,
         body: JSON.stringify({ 
           content,
           role: 'user' 
@@ -153,7 +171,7 @@ class ApiService {
       return result.data || null;
     } catch (error) {
       console.error('Error sending message:', error);
-      return null;
+      throw error;
     }
   }
 }

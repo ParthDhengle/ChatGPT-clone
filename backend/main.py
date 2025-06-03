@@ -22,7 +22,13 @@ app = FastAPI(title="ChatGPT Clone API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8080"],
+    
+    allow_origins=[
+        "http://localhost:3000", 
+        "http://localhost:8080",
+        "http://localhost:5173",  # Add Vite dev server
+        "http://127.0.0.1:5173",  # Add 127.0.0.1 variant
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -130,7 +136,160 @@ async def delete_chat(chat_id: str, current_user: dict = Depends(get_current_use
     except Exception as e:
         logger.error(f"Error in delete_chat: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+# Auth sync endpoint (needed by frontend)
+@app.post("/api/auth/sync")
+async def sync_user(current_user: dict = Depends(get_current_user)):
+    try:
+        user_data = {
+            'uid': current_user['uid'],
+            'email': current_user.get('email'),
+            'display_name': current_user.get('name', current_user.get('email'))
+        }
+        
+        success = await db.create_or_update_user(user_data)
+        
+        if success:
+            return {"success": True, "message": "User synced successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to sync user")
+    except Exception as e:
+        logger.error(f"Error in sync_user: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
+# Updated chats endpoint to match frontend expectations
+@app.get("/api/chats")
+async def get_current_user_chats(current_user: dict = Depends(get_current_user)):
+    try:
+        user_id = current_user['uid']
+        chats = await db.get_user_chats(user_id)
+        return {"success": True, "data": chats}
+    except Exception as e:
+        logger.error(f"Error in get_current_user_chats: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Create chat endpoint
+@app.post("/api/chats")
+async def create_chat_endpoint(request: dict, current_user: dict = Depends(get_current_user)):
+    try:
+        user_id = current_user['uid']
+        title = request.get('title', 'New Chat')
+        
+        chat_id = await db.create_chat(user_id, title)
+        
+        if chat_id:
+            return {"success": True, "data": {"chat_id": chat_id}}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to create chat")
+    except Exception as e:
+        logger.error(f"Error in create_chat_endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Delete chat endpoint
+@app.delete("/api/chats/{chat_id}")
+async def delete_chat_endpoint(chat_id: str, current_user: dict = Depends(get_current_user)):
+    try:
+        success = await db.delete_chat(chat_id, current_user['uid'])
+        
+        if success:
+            return {"success": True, "message": "Chat deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Chat not found or access denied")
+    except Exception as e:
+        logger.error(f"Error in delete_chat_endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Update chat title endpoint
+@app.patch("/api/chats/{chat_id}")
+async def update_chat_title(chat_id: str, request: dict, current_user: dict = Depends(get_current_user)):
+    try:
+        title = request.get('title')
+        if not title:
+            raise HTTPException(status_code=400, detail="Title is required")
+        
+        # You'll need to implement this in your database module
+        success = await db.update_chat_title(chat_id, title, current_user['uid'])
+        
+        if success:
+            return {"success": True, "message": "Chat title updated successfully"}
+        else:
+            raise HTTPException(status_code=404, detail="Chat not found or access denied")
+    except Exception as e:
+        logger.error(f"Error in update_chat_title: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Messages endpoints
+@app.get("/api/chats/{chat_id}/messages")
+async def get_messages_endpoint(chat_id: str, current_user: dict = Depends(get_current_user)):
+    try:
+        messages = await db.get_chat_messages(chat_id)
+        return {"success": True, "data": messages}
+    except Exception as e:
+        logger.error(f"Error in get_messages_endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/chats/{chat_id}/messages")
+async def send_message_endpoint(chat_id: str, request: dict, current_user: dict = Depends(get_current_user)):
+    try:
+        content = request.get('content')
+        if not content:
+            raise HTTPException(status_code=400, detail="Message content is required")
+        
+        # Save user message
+        user_msg_id = await db.save_message(chat_id, "user", content)
+        
+        # Generate AI response using your existing chat logic
+        chat_request = ChatRequest(
+            user_id=current_user['uid'],
+            chat_id=chat_id,
+            messages=[{"role": "user", "content": content}]
+        )
+        
+        # Use your existing chat endpoint logic
+        groq_messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": content}
+        ]
+        
+        response = client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=groq_messages,
+            max_tokens=1000,
+            temperature=0.7,
+            stream=False,
+        )
+        
+        ai_content = response.choices[0].message.content
+        ai_msg_id = await db.save_message(chat_id, "assistant", ai_content)
+        
+        # Return both messages in the expected format
+        user_message = {
+            "id": user_msg_id,
+            "chat_id": chat_id,
+            "role": "user",
+            "content": content,
+            "timestamp": "2024-01-01T00:00:00Z"  # Use actual timestamp
+        }
+        
+        ai_message = {
+            "id": ai_msg_id,
+            "chat_id": chat_id,
+            "role": "assistant", 
+            "content": ai_content,
+            "timestamp": "2024-01-01T00:00:00Z"  # Use actual timestamp
+        }
+        
+        return {
+            "success": True,
+            "data": {
+                "userMessage": user_message,
+                "aiResponse": ai_message
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in send_message_endpoint: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
 # Main chat endpoint
 @app.post("/api/chat")
 async def chat(request: ChatRequest, current_user: dict = Depends(get_current_user)):

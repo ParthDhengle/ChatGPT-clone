@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { 
   User, 
@@ -10,7 +9,6 @@ import {
 } from 'firebase/auth';
 import { auth, googleProvider } from '../config/firebase';
 import { apiService } from '../services/api';
-
 
 interface AuthContextType {
   currentUser: User | null;
@@ -39,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('firebase_token', token);
       
       // Sync user data with backend
-      await apiService.syncUserWithBackend(user);
+      await apiService.syncUserWithBackend();
     } catch (error) {
       console.error('Error syncing user with backend:', error);
     }
@@ -83,6 +81,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return unsubscribe;
   }, []);
+
+  // Second useEffect for syncing user with backend when currentUser changes
+  useEffect(() => {
+    const syncUser = async () => {
+      if (currentUser) {
+        try {
+          await apiService.syncUserWithBackend();
+        } catch (error) {
+          console.error('Failed to sync user with backend:', error);
+        }
+      }
+    };
+
+    syncUser();
+  }, [currentUser]);
 
   const value = {
     currentUser,
