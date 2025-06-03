@@ -1,64 +1,38 @@
-
+// src/pages/ChatInterface.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import ChatSidebar from '../components/ChatSidebar';
 import ChatMessage from '../components/ChatMessage';
 import ChatInput from '../components/ChatInput';
 import TypingIndicator from '../components/TypingIndicator';
-import { Chat, ChatMessage as ChatMessageType } from '../types/chat';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { apiService, Chat, Message } from '../services/api';
 
-// Dummy data for initial chats
-const dummyChats: Chat[] = [
-  {
-    id: '1',
-    title: 'Getting Started with React',
-    messages: [
-      {
-        id: '1',
-        content: 'How do I get started with React?',
-        role: 'user',
-        timestamp: new Date('2024-01-15T10:00:00')
-      },
-      {
-        id: '2',
-        content: 'Great question! React is a popular JavaScript library for building user interfaces. Here are the basic steps to get started:\n\n1. **Install Node.js** - React requires Node.js to run\n2. **Create a new React app** using `npx create-react-app my-app`\n3. **Learn the basics** - Components, JSX, Props, and State\n4. **Practice building** simple components\n\n```jsx\nfunction Welcome(props) {\n  return <h1>Hello, {props.name}!</h1>;\n}\n```\n\nWould you like me to explain any of these concepts in more detail?',
-        role: 'assistant',
-        timestamp: new Date('2024-01-15T10:01:00')
-      }
-    ],
-    createdAt: new Date('2024-01-15T10:00:00'),
-    updatedAt: new Date('2024-01-15T10:01:00')
-  },
-  {
-    id: '2',
-    title: 'JavaScript Array Methods',
-    messages: [
-      {
-        id: '3',
-        content: 'Explain JavaScript array methods like map, filter, and reduce',
-        role: 'user',
-        timestamp: new Date('2024-01-14T15:30:00')
-      },
-      {
-        id: '4',
-        content: 'JavaScript array methods are powerful tools for working with arrays. Here are the three most important ones:\n\n## 🗺️ map()\nTransforms each element and returns a new array:\n```javascript\nconst numbers = [1, 2, 3, 4];\nconst doubled = numbers.map(x => x * 2);\n// Result: [2, 4, 6, 8]\n```\n\n## 🔍 filter()\nCreates a new array with elements that pass a test:\n```javascript\nconst numbers = [1, 2, 3, 4, 5, 6];\nconst evens = numbers.filter(x => x % 2 === 0);\n// Result: [2, 4, 6]\n```\n\n## 🔄 reduce()\nReduces an array to a single value:\n```javascript\nconst numbers = [1, 2, 3, 4];\nconst sum = numbers.reduce((acc, curr) => acc + curr, 0);\n// Result: 10\n```\n\nThese methods are functional programming concepts that help write cleaner, more readable code!',
-        role: 'assistant',
-        timestamp: new Date('2024-01-14T15:31:00')
-      }
-    ],
-    createdAt: new Date('2024-01-14T15:30:00'),
-    updatedAt: new Date('2024-01-14T15:31:00')
-  }
-];
+// Convert backend chat to frontend chat format
+const convertBackendChat = (backendChat: any) => ({
+  id: backendChat.id,
+  title: backendChat.title,
+  messages: [], // Messages loaded separately
+  createdAt: new Date(backendChat.created_at),
+  updatedAt: new Date(backendChat.updated_at)
+});
+
+// Convert backend message to frontend message format
+const convertBackendMessage = (backendMessage: any) => ({
+  id: backendMessage.id,
+  content: backendMessage.content,
+  role: backendMessage.role as 'user' | 'assistant',
+  timestamp: new Date(backendMessage.timestamp)
+});
 
 const ChatInterface: React.FC = () => {
-  const [chats, setChats] = useState<Chat[]>(dummyChats);
-  const [currentChatId, setCurrentChatId] = useState<string>(dummyChats[0]?.id || '');
+  const [chats, setChats] = useState<any[]>([]);
+  const [currentChatId, setCurrentChatId] = useState<string>('');
+  const [currentMessages, setCurrentMessages] = useState<any[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [loading, setLoading] = useState(true);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { currentUser } = useAuth();
@@ -79,84 +53,100 @@ const ChatInterface: React.FC = () => {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
+  // Load user chats on mount
+  useEffect(() => {
+    if (currentUser) {
+      loadUserChats();
+    }
+  }, [currentUser]);
+
+  // Load messages when chat changes
+  useEffect(() => {
+    if (currentChatId) {
+      loadChatMessages(currentChatId);
+    } else {
+      setCurrentMessages([]);
+    }
+  }, [currentChatId]);
+
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [currentChat?.messages, isTyping]);
+  }, [currentMessages, isTyping]);
 
-  // Mock AI response generator
-  const generateMockResponse = async (userMessage: string): Promise<string> => {
-    // Simulate thinking time
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-    
-    const responses = [
-      "That's a great question! Let me help you with that.",
-      "I understand what you're asking. Here's my perspective on this topic:",
-      "Interesting point! Let me break this down for you:",
-      "Thank you for asking! I'd be happy to explain:",
-      "Great question! Here's what I can tell you about that:"
-    ];
-    
-    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-    return `${randomResponse}\n\nI'm a mock AI assistant, so this is just a placeholder response to demonstrate the UI. In a real implementation, this would be connected to an actual AI service.\n\nYour message was: "${userMessage}"`;
+  const loadUserChats = async () => {
+    try {
+      setLoading(true);
+      const backendChats = await apiService.getUserChats();
+      const convertedChats = backendChats.map(convertBackendChat);
+      setChats(convertedChats);
+      
+      // Set first chat as current if exists
+      if (convertedChats.length > 0) {
+        setCurrentChatId(convertedChats[0].id);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load chats. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadChatMessages = async (chatId: string) => {
+    try {
+      const backendMessages = await apiService.getChatMessages(chatId);
+      const convertedMessages = backendMessages.map(convertBackendMessage);
+      setCurrentMessages(convertedMessages);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load messages. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSendMessage = async (content: string) => {
     if (!currentChatId) {
-      handleNewChat();
+      // Create new chat first
+      const newChatId = await handleNewChat();
+      if (!newChatId) return;
+      // Wait for the chat to be set as current, then send message
+      setTimeout(() => handleSendMessage(content), 100);
       return;
     }
-
-    const userMessage: ChatMessageType = {
-      id: uuidv4(),
-      content,
-      role: 'user',
-      timestamp: new Date()
-    };
-
-    // Add user message
-    setChats(prevChats => 
-      prevChats.map(chat => 
-        chat.id === currentChatId 
-          ? { 
-              ...chat, 
-              messages: [...chat.messages, userMessage],
-              updatedAt: new Date()
-            }
-          : chat
-      )
-    );
 
     // Show typing indicator
     setIsTyping(true);
 
     try {
-      // Generate mock AI response
-      const aiResponse = await generateMockResponse(content);
+      // Send message to backend
+      const result = await apiService.sendMessage(currentChatId, content);
       
-      const assistantMessage: ChatMessageType = {
-        id: uuidv4(),
-        content: aiResponse,
-        role: 'assistant',
-        timestamp: new Date()
-      };
-
-      // Add AI response
-      setChats(prevChats => 
-        prevChats.map(chat => 
-          chat.id === currentChatId 
-            ? { 
-                ...chat, 
-                messages: [...chat.messages, assistantMessage],
-                updatedAt: new Date()
-              }
-            : chat
-        )
-      );
+      if (result) {
+        // Add both user message and AI response to current messages
+        const userMessage = convertBackendMessage(result.userMessage);
+        const aiMessage = convertBackendMessage(result.aiResponse);
+        
+        setCurrentMessages(prev => [...prev, userMessage, aiMessage]);
+        
+        // Update chat's updated time in the chats list
+        setChats(prevChats => 
+          prevChats.map(chat => 
+            chat.id === currentChatId 
+              ? { ...chat, updatedAt: new Date() }
+              : chat
+          )
+        );
+      }
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to generate response. Please try again.",
+        description: "Failed to send message. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -164,20 +154,37 @@ const ChatInterface: React.FC = () => {
     }
   };
 
-  const handleNewChat = () => {
-    const newChat: Chat = {
-      id: uuidv4(),
-      title: 'New Chat',
-      messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
+  const handleNewChat = async (): Promise<string | null> => {
+    try {
+      const chatId = await apiService.createChat('New Chat');
+      
+      if (chatId) {
+        const newChat = {
+          id: chatId,
+          title: 'New Chat',
+          messages: [],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
 
-    setChats(prevChats => [newChat, ...prevChats]);
-    setCurrentChatId(newChat.id);
-    
-    if (isMobile) {
-      setSidebarOpen(false);
+        setChats(prevChats => [newChat, ...prevChats]);
+        setCurrentChatId(chatId);
+        
+        if (isMobile) {
+          setSidebarOpen(false);
+        }
+        
+        return chatId;
+      }
+      
+      throw new Error('Failed to create chat');
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create new chat. Please try again.",
+        variant: "destructive",
+      });
+      return null;
     }
   };
 
@@ -188,40 +195,48 @@ const ChatInterface: React.FC = () => {
     }
   };
 
-  const handleDeleteChat = (chatId: string) => {
-    setChats(prevChats => prevChats.filter(chat => chat.id !== chatId));
-    
-    if (currentChatId === chatId) {
-      const remainingChats = chats.filter(chat => chat.id !== chatId);
-      setCurrentChatId(remainingChats[0]?.id || '');
-    }
+  const handleDeleteChat = async (chatId: string) => {
+    try {
+      const success = await apiService.deleteChat(chatId);
+      
+      if (success) {
+        setChats(prevChats => prevChats.filter(chat => chat.id !== chatId));
+        
+        if (currentChatId === chatId) {
+          const remainingChats = chats.filter(chat => chat.id !== chatId);
+          setCurrentChatId(remainingChats[0]?.id || '');
+        }
 
-    toast({
-      title: "Chat deleted",
-      description: "The chat has been successfully deleted.",
-    });
+        toast({
+          title: "Chat deleted",
+          description: "The chat has been successfully deleted.",
+        });
+      } else {
+        throw new Error('Failed to delete chat');
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete chat. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleRegenerate = async () => {
-    if (!currentChat || currentChat.messages.length === 0) return;
+    if (!currentMessages.length) return;
 
-    const lastUserMessage = [...currentChat.messages]
+    const lastUserMessage = [...currentMessages]
       .reverse()
       .find(msg => msg.role === 'user');
 
     if (lastUserMessage) {
       // Remove the last assistant message if it exists
-      const updatedMessages = currentChat.messages.filter(
+      const updatedMessages = currentMessages.filter(
         msg => !(msg.role === 'assistant' && msg.timestamp > lastUserMessage.timestamp)
       );
 
-      setChats(prevChats => 
-        prevChats.map(chat => 
-          chat.id === currentChatId 
-            ? { ...chat, messages: updatedMessages }
-            : chat
-        )
-      );
+      setCurrentMessages(updatedMessages);
 
       // Regenerate response
       await handleSendMessage(lastUserMessage.content);
@@ -232,6 +247,14 @@ const ChatInterface: React.FC = () => {
     // For demo purposes, just send as new message
     handleSendMessage(content);
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-chat-bg items-center justify-center">
+        <div className="text-chat-text">Loading chats...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-chat-bg">
@@ -256,14 +279,14 @@ const ChatInterface: React.FC = () => {
               {currentChat?.title || 'New Chat'}
             </h1>
             <div className="text-sm text-chat-text-muted">
-              {currentChat?.messages.length || 0} messages
+              {currentMessages.length} messages
             </div>
           </div>
         </div>
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto">
-          {!currentChat || currentChat.messages.length === 0 ? (
+          {!currentChatId || currentMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center max-w-md mx-auto p-6">
                 <div className="text-6xl mb-4">💬</div>
@@ -277,7 +300,7 @@ const ChatInterface: React.FC = () => {
             </div>
           ) : (
             <div className="max-w-4xl mx-auto p-4 space-y-6">
-              {currentChat.messages.map((message) => (
+              {currentMessages.map((message) => (
                 <ChatMessage
                   key={message.id}
                   message={message}

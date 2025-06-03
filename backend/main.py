@@ -170,7 +170,7 @@ async def chat(request: ChatRequest, current_user: dict = Depends(get_current_us
 
         try:
             response = client.chat.completions.create(
-                model="llama-3.1-70b-versatile",  # Updated to a more stable model
+                model="llama-3.3-70b-versatile",  # Updated to a more stable model
                 messages=groq_messages,
                 max_tokens=1000,
                 temperature=0.7,
